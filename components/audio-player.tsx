@@ -3,76 +3,125 @@
 import { useEffect, useRef, useState } from "react"
 import { Play, Pause, Music2 } from "lucide-react"
 
-const TRACK_SRC = "/audio/ambient.mp3"
-const TRACK_NAME = "concrete_ambient.mp3"
+const VIDEO_ID = "4bYmQYGaCq8"
+const TRACK_NAME = "concrete_ambient.yt"
+
+// Minimal typings for the YouTube IFrame API we use.
+declare global {
+  interface Window {
+    YT?: {
+      Player: new (el: HTMLElement, opts: Record<string, unknown>) => YTPlayer
+      PlayerState: { PLAYING: number; PAUSED: number; ENDED: number }
+    }
+    onYouTubeIframeAPIReady?: () => void
+  }
+}
+
+type YTPlayer = {
+  playVideo: () => void
+  pauseVideo: () => void
+  setVolume: (v: number) => void
+  destroy: () => void
+}
 
 export function AudioPlayer() {
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const playerRef = useRef<YTPlayer | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [ready, setReady] = useState(false)
-  const [hint, setHint] = useState("click to play")
+  const [hint, setHint] = useState("loading…")
 
-  // Browsers block autoplay until the user interacts with the page.
-  // We attempt a muted-to-unmuted start on the first interaction anywhere.
+  // Load the YouTube IFrame API once, then build a hidden player.
   useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
+    let cancelled = false
 
-    const tryAutoplay = async () => {
-      try {
-        await audio.play()
-        setIsPlaying(true)
-        setHint("now playing")
-      } catch {
-        setHint("click to play")
-      }
-      window.removeEventListener("pointerdown", tryAutoplay)
-      window.removeEventListener("keydown", tryAutoplay)
+    const createPlayer = () => {
+      if (cancelled || !containerRef.current || !window.YT) return
+      playerRef.current = new window.YT.Player(containerRef.current, {
+        videoId: VIDEO_ID,
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          loop: 1,
+          playlist: VIDEO_ID, // required for loop to work
+          modestbranding: 1,
+          rel: 0,
+        },
+        events: {
+          onReady: (e: { target: YTPlayer }) => {
+            e.target.setVolume(60)
+            setReady(true)
+            setHint("click to play")
+          },
+          onStateChange: (e: { data: number }) => {
+            const YT = window.YT
+            if (!YT) return
+            if (e.data === YT.PlayerState.PLAYING) {
+              setIsPlaying(true)
+              setHint("now playing")
+            } else if (e.data === YT.PlayerState.PAUSED) {
+              setIsPlaying(false)
+              setHint("paused")
+            } else if (e.data === YT.PlayerState.ENDED) {
+              setIsPlaying(false)
+            }
+          },
+        },
+      })
     }
 
-    window.addEventListener("pointerdown", tryAutoplay)
-    window.addEventListener("keydown", tryAutoplay)
+    if (window.YT && window.YT.Player) {
+      createPlayer()
+    } else {
+      // Inject the API script if it isn't present yet.
+      const existing = document.querySelector<HTMLScriptElement>(
+        'script[src="https://www.youtube.com/iframe_api"]',
+      )
+      if (!existing) {
+        const tag = document.createElement("script")
+        tag.src = "https://www.youtube.com/iframe_api"
+        document.head.appendChild(tag)
+      }
+      // The API calls this global when it finishes loading.
+      const prev = window.onYouTubeIframeAPIReady
+      window.onYouTubeIframeAPIReady = () => {
+        prev?.()
+        createPlayer()
+      }
+    }
+
     return () => {
-      window.removeEventListener("pointerdown", tryAutoplay)
-      window.removeEventListener("keydown", tryAutoplay)
+      cancelled = true
+      playerRef.current?.destroy()
+      playerRef.current = null
     }
   }, [])
 
-  const toggle = async () => {
-    const audio = audioRef.current
-    if (!audio) return
+  const toggle = () => {
+    const player = playerRef.current
+    if (!player) return
     if (isPlaying) {
-      audio.pause()
-      setIsPlaying(false)
-      setHint("paused")
+      player.pauseVideo()
     } else {
-      try {
-        await audio.play()
-        setIsPlaying(true)
-        setHint("now playing")
-      } catch {
-        setHint("no track loaded")
-      }
+      player.playVideo()
     }
   }
 
   return (
     <div className="fixed bottom-4 left-4 z-40">
-      <audio
-        ref={audioRef}
-        src={TRACK_SRC}
-        loop
-        preload="auto"
-        onCanPlay={() => setReady(true)}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-      />
+      {/* Hidden YouTube player — audio only, never visible or interactive. */}
+      <div className="pointer-events-none absolute size-px overflow-hidden opacity-0" aria-hidden="true">
+        <div ref={containerRef} />
+      </div>
+
       <div className="flex items-center gap-3 rounded-sm border border-border bg-popover/70 px-3 py-2 backdrop-blur-md">
         <button
           type="button"
           onClick={toggle}
+          disabled={!ready}
           aria-label={isPlaying ? "Pause background music" : "Play background music"}
-          className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+          className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
         >
           {isPlaying ? <Pause className="size-4" /> : <Play className="size-4 translate-x-[1px]" />}
         </button>
@@ -82,7 +131,7 @@ export function AudioPlayer() {
             <span className="truncate">{TRACK_NAME}</span>
           </span>
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            {ready ? hint : "autoplay on interaction"}
+            {ready ? hint : "loading player"}
           </span>
         </div>
       </div>
