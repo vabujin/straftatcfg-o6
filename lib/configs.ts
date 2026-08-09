@@ -8,8 +8,14 @@ export type CfgConfig = {
   downloadUrl?: string
 }
 
-// Seed configs shown in the hub. New submissions are added in-memory at runtime.
-export const seedConfigs: CfgConfig[] = [
+/**
+ * VERIFIED CONFIGS — the "some configs that we consider good" tab.
+ *
+ * This list is read-only in the app. To add or edit a verified config,
+ * edit this array directly in the source file (via Vercel / GitHub) and
+ * redeploy. User submissions never land here.
+ */
+export const verifiedConfigs: CfgConfig[] = [
   {
     id: "essential",
     name: "essential.cfg",
@@ -25,6 +31,43 @@ export const seedConfigs: CfgConfig[] = [
       "sv_friendly_fire 0",
     ].join("\n"),
   },
+  {
+    id: "movement",
+    name: "movement.cfg",
+    author: "straftat",
+    dateAdded: "2026-07-29",
+    description: "Recommended movement tuning for clean strafing and air control.",
+    content: [
+      "// movement.cfg",
+      "sv_air_accelerate 12",
+      "sv_bunnyhop 1",
+      "sv_friction 4",
+      "cl_smooth 1",
+      "cl_interp_ratio 1",
+    ].join("\n"),
+  },
+  {
+    id: "netcode",
+    name: "netcode.cfg",
+    author: "straftat",
+    dateAdded: "2026-07-31",
+    description: "Solid networking defaults for low-latency lobbies.",
+    content: [
+      "// netcode.cfg",
+      "cl_updaterate 128",
+      "cl_cmdrate 128",
+      "rate 786432",
+      "cl_interp 0",
+      "cl_lagcompensation 1",
+    ].join("\n"),
+  },
+]
+
+/**
+ * COMMUNITY CONFIGS — seed entries for the "Community Configs" tab.
+ * New user submissions are prepended to this list in-memory at runtime.
+ */
+export const communitySeedConfigs: CfgConfig[] = [
   {
     id: "troll_mod",
     name: "troll_mod.cfg",
@@ -85,7 +128,7 @@ export const seedConfigs: CfgConfig[] = [
   {
     id: "silent_night",
     name: "silent_night.cfg",
-    author: "straftat",
+    author: "nulled",
     dateAdded: "2026-08-08",
     description: "Footsteps off, ambient only. Great for hide and seek lobbies.",
     content: [

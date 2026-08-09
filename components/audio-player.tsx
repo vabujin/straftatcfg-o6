@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import { Play, Pause, Music2 } from "lucide-react"
 
 const VIDEO_ID = "4bYmQYGaCq8"
-const TRACK_NAME = "concrete_ambient.yt"
+const TRACK_NAME = "VHOLUME"
+const ARTIST_NAME = "1000 EYES"
 
 // Minimal typings for the YouTube IFrame API we use.
 declare global {
@@ -21,6 +22,9 @@ type YTPlayer = {
   playVideo: () => void
   pauseVideo: () => void
   setVolume: (v: number) => void
+  mute: () => void
+  unMute: () => void
+  isMuted: () => boolean
   destroy: () => void
 }
 
@@ -29,7 +33,6 @@ export function AudioPlayer() {
   const playerRef = useRef<YTPlayer | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [ready, setReady] = useState(false)
-  const [hint, setHint] = useState("loading…")
 
   // Load the YouTube IFrame API once, then build a hidden player.
   useEffect(() => {
@@ -40,30 +43,41 @@ export function AudioPlayer() {
       playerRef.current = new window.YT.Player(containerRef.current, {
         videoId: VIDEO_ID,
         playerVars: {
-          autoplay: 0,
+          // Autoplay muted — browsers allow muted autoplay without a gesture.
+          autoplay: 1,
+          mute: 1,
           controls: 0,
           disablekb: 1,
           loop: 1,
           playlist: VIDEO_ID, // required for loop to work
           modestbranding: 1,
           rel: 0,
+          playsinline: 1,
         },
         events: {
           onReady: (e: { target: YTPlayer }) => {
-            e.target.setVolume(60)
+            const p = e.target
+            p.setVolume(60)
             setReady(true)
-            setHint("click to play")
+            // Kick off playback immediately (muted so it is allowed to start).
+            p.playVideo()
+            // Try to unmute right away; if the browser blocks audible autoplay,
+            // the first user interaction below will unmute gracefully.
+            setTimeout(() => {
+              try {
+                p.unMute()
+                p.setVolume(60)
+              } catch {
+                /* stays muted until a user gesture */
+              }
+            }, 300)
           },
           onStateChange: (e: { data: number }) => {
             const YT = window.YT
             if (!YT) return
             if (e.data === YT.PlayerState.PLAYING) {
               setIsPlaying(true)
-              setHint("now playing")
-            } else if (e.data === YT.PlayerState.PAUSED) {
-              setIsPlaying(false)
-              setHint("paused")
-            } else if (e.data === YT.PlayerState.ENDED) {
+            } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
               setIsPlaying(false)
             }
           },
@@ -91,8 +105,29 @@ export function AudioPlayer() {
       }
     }
 
+    // Unmute + ensure playback on the first user interaction, in case the
+    // browser blocked audible autoplay on load.
+    const onFirstInteraction = () => {
+      const p = playerRef.current
+      if (p) {
+        try {
+          p.unMute()
+          p.setVolume(60)
+          p.playVideo()
+        } catch {
+          /* ignore */
+        }
+      }
+      window.removeEventListener("pointerdown", onFirstInteraction)
+      window.removeEventListener("keydown", onFirstInteraction)
+    }
+    window.addEventListener("pointerdown", onFirstInteraction)
+    window.addEventListener("keydown", onFirstInteraction)
+
     return () => {
       cancelled = true
+      window.removeEventListener("pointerdown", onFirstInteraction)
+      window.removeEventListener("keydown", onFirstInteraction)
       playerRef.current?.destroy()
       playerRef.current = null
     }
@@ -104,6 +139,8 @@ export function AudioPlayer() {
     if (isPlaying) {
       player.pauseVideo()
     } else {
+      player.unMute()
+      player.setVolume(60)
       player.playVideo()
     }
   }
@@ -130,8 +167,15 @@ export function AudioPlayer() {
             <Music2 className="size-3 text-primary" />
             <span className="truncate">{TRACK_NAME}</span>
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            {ready ? hint : "loading player"}
+          <span className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {ARTIST_NAME}
+          </span>
+          <span
+            className={`font-mono text-[10px] uppercase tracking-widest ${
+              isPlaying ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            {isPlaying ? "playing" : "paused"}
           </span>
         </div>
       </div>
