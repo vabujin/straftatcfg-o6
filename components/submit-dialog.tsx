@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X, Plus } from "lucide-react"
+import { X, Plus, Loader2 } from "lucide-react"
 import type { CfgConfig } from "@/lib/configs"
+import { submitCommunityConfig } from "@/app/actions/community-configs"
 
 type Props = {
   onAdd: (config: CfgConfig) => void
@@ -14,6 +15,8 @@ export function SubmitDialog({ onAdd }: Props) {
   const [author, setAuthor] = useState("")
   const [description, setDescription] = useState("")
   const [content, setContent] = useState("")
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Close on Escape for accessibility.
   useEffect(() => {
@@ -29,21 +32,27 @@ export function SubmitDialog({ onAdd }: Props) {
     setAuthor("")
     setDescription("")
     setContent("")
+    setError(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = name.trim()
-    if (!trimmed) return
-    const finalName = trimmed.endsWith(".cfg") ? trimmed : `${trimmed}.cfg`
-    onAdd({
-      id: `${finalName}-${Date.now()}`,
-      name: finalName,
-      author: author.trim() || "anonymous",
-      dateAdded: new Date().toISOString(),
-      description: description.trim() || "No description provided.",
-      content: content.trim() || `// ${finalName}`,
-    })
+    if (!trimmed || pending) return
+
+    setPending(true)
+    setError(null)
+
+    const result = await submitCommunityConfig({ name: trimmed, author, description, content })
+
+    setPending(false)
+
+    if (!result.success) {
+      setError(result.error)
+      return
+    }
+
+    onAdd(result.config)
     reset()
     setOpen(false)
   }
@@ -55,7 +64,7 @@ export function SubmitDialog({ onAdd }: Props) {
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 rounded-sm bg-primary px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
       >
-        <Plus className="size-4" /> submit a cfg
+        <Plus className="size-4" /> submit configs
       </button>
 
       {open && (
@@ -89,6 +98,7 @@ export function SubmitDialog({ onAdd }: Props) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="troll_mod.cfg"
                   required
+                  disabled={pending}
                   className="cfg-input"
                 />
               </Field>
@@ -97,6 +107,7 @@ export function SubmitDialog({ onAdd }: Props) {
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
                   placeholder="your handle"
+                  disabled={pending}
                   className="cfg-input"
                 />
               </Field>
@@ -105,6 +116,7 @@ export function SubmitDialog({ onAdd }: Props) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="what does it do?"
+                  disabled={pending}
                   className="cfg-input"
                 />
               </Field>
@@ -114,15 +126,20 @@ export function SubmitDialog({ onAdd }: Props) {
                   onChange={(e) => setContent(e.target.value)}
                   placeholder={"sv_gravity 120\nsv_headscale 4.0"}
                   rows={4}
+                  disabled={pending}
                   className="cfg-input resize-none"
                 />
               </Field>
 
+              {error && <p className="font-mono text-xs text-destructive">{error}</p>}
+
               <button
                 type="submit"
-                className="mt-1 flex items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-primary-foreground transition-transform hover:scale-[1.02] active:scale-95"
+                disabled={pending}
+                className="mt-1 flex items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-primary-foreground transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:hover:scale-100"
               >
-                add to hub
+                {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                {pending ? "adding..." : "add to hub"}
               </button>
             </form>
           </div>

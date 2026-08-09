@@ -12,7 +12,7 @@ export function Hero() {
       </h1>
 
       <p className="mt-5 max-w-md text-pretty text-lg text-muted-foreground animate-in fade-in slide-in-from-bottom-4">
-        funny cfgs for lobbys.
+        configs for straftat lobbys
       </p>
 
       <a
