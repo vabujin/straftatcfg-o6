@@ -47,6 +47,17 @@ export function AudioPlayer() {
   useEffect(() => {
     let cancelled = false
 
+    // Browsers block unmuted autoplay until the user interacts with the
+    // page. Once they do, try to unmute so the track actually has sound.
+    function onFirstInteraction() {
+      try {
+        playerRef.current?.unMute()
+        playerRef.current?.setVolume(35)
+      } catch {
+        // Ignore — player may not be ready yet, stays muted until toggled.
+      }
+    }
+
     function createPlayer() {
       if (cancelled || !containerRef.current || !window.YT) return
 
@@ -106,6 +117,8 @@ export function AudioPlayer() {
 
     return () => {
       cancelled = true
+      window.removeEventListener("pointerdown", onFirstInteraction)
+      window.removeEventListener("keydown", onFirstInteraction)
     }
   }, [])
 
