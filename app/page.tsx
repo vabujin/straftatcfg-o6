@@ -2,8 +2,11 @@ import { Hero } from "@/components/hero"
 import { CfgHub } from "@/components/cfg-hub"
 import { SiteFooter } from "@/components/site-footer"
 import { AudioPlayer } from "@/components/audio-player"
+import { getCommunityConfigs } from "@/app/actions/community-configs"
 
-export default function Page() {
+export default async function Page() {
+  const communityConfigs = await getCommunityConfigs()
+
   return (
     <main className="relative min-h-screen">
       {/* Full-screen atmospheric background (fixed, behind the content layer) */}
@@ -24,7 +27,7 @@ export default function Page() {
         <Hero />
 
         <div id="hub" className="scroll-mt-8">
-          <CfgHub />
+          <CfgHub initialCommunityConfigs={communityConfigs} />
         </div>
 
         <SiteFooter />
