@@ -55,7 +55,7 @@ export function SubmitDialog({ onAdd }: Props) {
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 rounded-sm bg-primary px-4 py-2.5 font-mono text-sm uppercase tracking-wider text-primary-foreground transition-transform hover:scale-[1.03] active:scale-95"
       >
-        <Plus className="size-4" /> submit a cfg
+        <Plus className="size-4" /> submit configs
       </button>
 
       {open && (
