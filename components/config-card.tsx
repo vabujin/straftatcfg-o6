@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Copy, Download, User, Calendar } from "lucide-react"
+import { Check, Copy, Download, User, Calendar, ShieldCheck } from "lucide-react"
 import type { CfgConfig } from "@/lib/configs"
 
 function formatDate(iso: string) {
@@ -9,7 +9,15 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
 }
 
-export function ConfigCard({ config, index }: { config: CfgConfig; index: number }) {
+export function ConfigCard({
+  config,
+  index,
+  verified = false,
+}: {
+  config: CfgConfig
+  index: number
+  verified?: boolean
+}) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -41,7 +49,16 @@ export function ConfigCard({ config, index }: { config: CfgConfig; index: number
         <h3 className="font-mono text-base text-foreground">
           <span className="text-primary">$</span> {config.name}
         </h3>
-        <span className="mt-1 size-2 shrink-0 rounded-full bg-primary/70" aria-hidden="true" />
+        {verified ? (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary"
+            title="Verified config"
+          >
+            <ShieldCheck className="size-3" /> verified
+          </span>
+        ) : (
+          <span className="mt-1 size-2 shrink-0 rounded-full bg-primary/70" aria-hidden="true" />
+        )}
       </div>
 
       <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">{config.description}</p>

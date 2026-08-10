@@ -101,6 +101,8 @@ export function AudioPlayer() {
         document.head.appendChild(script)
       }
     }
+    window.addEventListener("pointerdown", onFirstInteraction)
+    window.addEventListener("keydown", onFirstInteraction)
 
     return () => {
       cancelled = true

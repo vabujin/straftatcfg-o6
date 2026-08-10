@@ -108,7 +108,8 @@ export function CfgHub({ initialCommunityConfigs }: { initialCommunityConfigs: C
             {resultCount} {tab === "community" && !searching ? "folders" : "configs"} available
           </p>
         </div>
-        <SubmitDialog onAdd={handleAdd} />
+        {/* Submitting only makes sense in the community tab; verified is source-only. */}
+        {tab === "community" && <SubmitDialog onAdd={handleAdd} />}
       </div>
 
       <div
@@ -229,5 +230,30 @@ export function CfgHub({ initialCommunityConfigs }: { initialCommunityConfigs: C
         </>
       )}
     </section>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`-mb-px flex items-center gap-2 border-b-2 px-1 py-3 text-left font-mono text-sm transition-colors ${
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
   )
 }
