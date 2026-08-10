@@ -41,7 +41,10 @@ export async function getCommunityConfigs(): Promise<CfgConfig[]> {
     .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("[v0] Failed to load community configs:", error.message)
+    // Log as a warning, not an error: this is an expected, handled state
+    // when Supabase isn't connected yet (e.g. placeholder credentials), and
+    // the fallback (empty list) already keeps the UI fully functional.
+    console.warn("[v0] Community configs unavailable, showing empty hub:", error.message)
     return []
   }
 
@@ -77,7 +80,7 @@ export async function submitCommunityConfig(input: SubmitConfigInput): Promise<S
     .single()
 
   if (error) {
-    console.error("[v0] Failed to submit community config:", error.message)
+    console.warn("[v0] Could not submit community config:", error.message)
     return { success: false, error: "Could not save your config. Please try again." }
   }
 
