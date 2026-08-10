@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { X, Plus, Loader2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { X, Plus, Loader2, ImageUp } from "lucide-react"
 import type { CfgConfig } from "@/lib/configs"
 import { submitCommunityConfig } from "@/app/actions/community-configs"
 
@@ -9,15 +9,25 @@ type Props = {
   onAdd: (config: CfgConfig) => void
 }
 
+const TAG_PRESETS = ["ADHD KINGDOM", "QCW ONLY", "slow or die", "GoM"]
+const MAX_TAGS = 6
+const MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024
+
 export function SubmitDialog({ onAdd }: Props) {
   const [open, setOpen] = useState(false)
   const [collection, setCollection] = useState("")
   const [author, setAuthor] = useState("")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [content, setContent] = useState("")
+  const [weaponSpawns, setWeaponSpawns] = useState("")
+  const [mapPlaylist, setMapPlaylist] = useState("")
+  const [tags, setTags] = useState<string[]>([])
+  const [tagDraft, setTagDraft] = useState("")
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Close on Escape for accessibility.
   useEffect(() => {
@@ -28,13 +38,87 @@ export function SubmitDialog({ onAdd }: Props) {
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
+  // Avoid leaking the object URL created for the thumbnail preview.
+  useEffect(() => {
+    return () => {
+      if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview)
+    }
+  }, [thumbnailPreview])
+
   const reset = () => {
     setCollection("")
     setAuthor("")
     setName("")
     setDescription("")
-    setContent("")
+    setWeaponSpawns("")
+    setMapPlaylist("")
+    setTags([])
+    setTagDraft("")
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview)
+    setThumbnailFile(null)
+    setThumbnailPreview(null)
     setError(null)
+  }
+
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setError("Thumbnail must be an image file.")
+      return
+    }
+    if (file.size > MAX_THUMBNAIL_BYTES) {
+      setError("Thumbnail must be smaller than 4MB.")
+      return
+    }
+
+    setError(null)
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview)
+    setThumbnailFile(file)
+    setThumbnailPreview(URL.createObjectURL(file))
+  }
+
+  const removeThumbnail = () => {
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview)
+    setThumbnailFile(null)
+    setThumbnailPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const addTag = (raw: string) => {
+    const value = raw.trim().slice(0, 24)
+    if (!value || tags.length >= MAX_TAGS) return
+    if (tags.some((t) => t.toLowerCase() === value.toLowerCase())) return
+    setTags((prev) => [...prev, value])
+    setTagDraft("")
+  }
+
+  const removeTag = (value: string) => {
+    setTags((prev) => prev.filter((t) => t !== value))
+  }
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault()
+      addTag(tagDraft)
+    } else if (e.key === "Backspace" && !tagDraft && tags.length > 0) {
+      removeTag(tags[tags.length - 1])
+    }
+  }
+
+  const buildContent = () => {
+    const sections: string[] = []
+
+    const spawns = weaponSpawns.trim()
+    if (spawns) sections.push(`[WEAPON SPAWN PERCENTAGES]\n${spawns}`)
+
+    const playlist = mapPlaylist.trim()
+    if (playlist) sections.push(`[MAP PLAYLIST CODES]\n${playlist}`)
+
+    if (tags.length > 0) sections.push(`[GENRE TAGS]\n${tags.join(", ")}`)
+
+    return sections.join("\n\n")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,7 +135,7 @@ export function SubmitDialog({ onAdd }: Props) {
       name: trimmedName,
       author,
       description,
-      content,
+      content: buildContent(),
     })
 
     setPending(false)
@@ -139,15 +223,122 @@ export function SubmitDialog({ onAdd }: Props) {
                   className="cfg-input"
                 />
               </Field>
-              <Field label="paste preset">
+
+              <Field label="thumbnail image">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailChange}
+                  disabled={pending}
+                  className="sr-only"
+                  id="thumbnail-upload"
+                />
+                {thumbnailPreview ? (
+                  <div className="relative flex items-center gap-3 rounded-sm border border-input bg-background/60 p-3">
+                    <img
+                      src={thumbnailPreview || "/placeholder.svg"}
+                      alt="Thumbnail preview"
+                      className="size-14 shrink-0 rounded-sm border border-border object-cover"
+                    />
+                    <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+                      <span className="truncate font-mono text-xs text-foreground">{thumbnailFile?.name}</span>
+                      <label
+                        htmlFor="thumbnail-upload"
+                        className="cursor-pointer font-mono text-xs uppercase tracking-widest text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
+                      >
+                        replace
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeThumbnail}
+                      disabled={pending}
+                      aria-label="Remove thumbnail"
+                      className="rounded-sm p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="thumbnail-upload"
+                    className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-sm border border-dashed border-input bg-background/60 px-3 py-6 text-center transition-colors hover:border-primary"
+                  >
+                    <ImageUp className="size-5 text-muted-foreground" />
+                    <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+                      click to upload from your pc
+                    </span>
+                    <span className="text-xs text-muted-foreground/70">PNG, JPG, WEBP up to 4MB</span>
+                  </label>
+                )}
+              </Field>
+
+              <Field label="weapon spawn percentages">
                 <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder={"weapon_pct_ak 40\nweapon_pct_awp 15\nmap_playlist_b64 eyJtYXBzIjpbXX0="}
-                  rows={6}
+                  value={weaponSpawns}
+                  onChange={(e) => setWeaponSpawns(e.target.value)}
+                  placeholder={"AP mine - 100 (22.6%)\nFrag grenade - 80 (18.1%)\nSmoke grenade - 40 (9.0%)"}
+                  rows={4}
                   disabled={pending}
                   className="cfg-input resize-none font-mono"
                 />
+              </Field>
+
+              <Field label="map playlist codes">
+                <textarea
+                  value={mapPlaylist}
+                  onChange={(e) => setMapPlaylist(e.target.value)}
+                  placeholder={"eyJtYXBzIjpbInJvb2Z0b3AiLCJiYW5rZXIiXX0=\neyJtYXBzIjpbInNld2VyIl19"}
+                  rows={4}
+                  disabled={pending}
+                  className="cfg-input resize-none font-mono"
+                />
+                <span className="text-xs text-muted-foreground/70">One base64 playlist string per line.</span>
+              </Field>
+
+              <Field label="genre tags">
+                <div className="flex flex-wrap items-center gap-1.5 rounded-sm border border-input bg-background/60 p-2">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="flex items-center gap-1 rounded-sm border border-border bg-secondary px-2 py-1 font-mono text-xs uppercase tracking-wide text-secondary-foreground"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(tag)}
+                        aria-label={`Remove tag ${tag}`}
+                        disabled={pending}
+                        className="text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    value={tagDraft}
+                    onChange={(e) => setTagDraft(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    onBlur={() => addTag(tagDraft)}
+                    placeholder={tags.length === 0 ? "e.g. QCW ONLY" : ""}
+                    disabled={pending || tags.length >= MAX_TAGS}
+                    className="min-w-24 flex-1 bg-transparent px-1 py-1 font-mono text-sm text-foreground placeholder:text-muted-foreground/60 outline-none"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {TAG_PRESETS.filter((preset) => !tags.includes(preset)).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => addTag(preset)}
+                      disabled={pending || tags.length >= MAX_TAGS}
+                      className="rounded-sm border border-border px-2 py-1 font-mono text-xs uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
+                    >
+                      + {preset}
+                    </button>
+                  ))}
+                </div>
               </Field>
 
               {error && <p className="font-mono text-xs text-destructive">{error}</p>}
