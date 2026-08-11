@@ -142,13 +142,10 @@ export function CfgHub({ initialCommunityConfigs }: { initialCommunityConfigs: C
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 pb-28">
-      <div className="mb-6 flex flex-col gap-4 rounded-sm border border-border bg-card/70 p-4 backdrop-blur-sm sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-mono text-sm uppercase tracking-widest text-primary">// the hub</h2>
-          <p className="mt-1 text-2xl text-foreground">
-            {resultCount} {tab === "community" && !searching ? "folders" : "live configs"} available
-          </p>
-        </div>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <p className="text-2xl text-foreground">
+          {resultCount} {tab === "community" && !searching ? "folders" : "live configs"} available
+        </p>
         {tab === "community" && <SubmitDialog onAdd={handleAdd} />}
       </div>
 

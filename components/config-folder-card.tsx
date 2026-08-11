@@ -15,11 +15,11 @@ export function ConfigFolderCard({ name, count, contributors, index, onOpen }: P
     <button
       type="button"
       onClick={onOpen}
-      className="group flex flex-col rounded-sm border border-border bg-card p-5 text-left backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/50"
+      className="group relative flex min-h-44 flex-col rounded-sm border border-border/60 bg-card/40 p-5 text-left backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card/60"
       style={{ animationDelay: `${index * 60}ms`, animationFillMode: "backwards" }}
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-border bg-secondary text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-secondary/50 text-primary">
           <Folder className="size-4" />
         </span>
         <ChevronRight className="mt-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
@@ -31,9 +31,9 @@ export function ConfigFolderCard({ name, count, contributors, index, onOpen }: P
         {count} {count === 1 ? "config" : "configs"}
       </p>
 
-      <p className="mt-4 truncate border-t border-border pt-3 font-mono text-xs text-muted-foreground">
+      <span className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-sm border border-border/50 bg-background/60 px-2 py-1 font-mono text-[10px] text-muted-foreground/90 backdrop-blur-sm">
         by {contributors.join(", ")}
-      </p>
+      </span>
     </button>
   )
 }
